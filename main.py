@@ -1,11 +1,14 @@
 import csv
 import re
 import numpy as np
+import random
+import math
 
 dictWords = {}
 global numberOfReviews
 global reviews
 global sentiments
+global trainningSentences, testSentences, trainningIndexes, testIndexes
 
 def main():
 
@@ -14,8 +17,9 @@ def main():
         reader = csv.reader(file)
         train = []
 
+
         global numberOfReviews
-        numberOfReviews = 0
+        numberOfReviews = -1
 
         global reviews
         reviews = []
@@ -23,36 +27,53 @@ def main():
         global sentiments
         sentiments = []
 
+
+
         for row in reader:
             numberOfReviews += 1
             row[2] = re.sub("[^a-zA-Z]", " ", row[2])
             train.append(row)
+            reviews.append([row[1], row[2], row[3], row[4]])
+
+        reviews.pop(0)
+
+        dataSequence = range(0, numberOfReviews)
+        random.shuffle(dataSequence)
+
+        global testIndexes, trainningSentences, testSentences, trainningIndexes
+
+        testIndexes = dataSequence[:int(math.floor(float(numberOfReviews) / 5))]
+        trainningIndexes = list(set(dataSequence).difference(testIndexes))
+        testSentences = np.array(reviews)[testIndexes][:,1]
+        trainningSentences = np.array(reviews)[trainningIndexes]
 
         titles = train[0]
         train.remove(train[0])
 
-        for evaluation in train:
-            countWords(evaluation[2], evaluation[3])
-
+        for evaluation in trainningSentences:
+            countWords(evaluation[1], evaluation[2])
 
         corrects = 0.0
-
-        for index,review in enumerate(reviews):
+        for index,review in enumerate(testSentences):
             if classify(review) - int(sentiments[index]) == 0:
                 corrects += 1
 
-        print corrects / numberOfReviews
+        print 'Vc atingiu ', (corrects / len(testSentences))
 
 def classify(sentence):
+
     return np.argsort(probabilityOfSentenceBelongToSentiment(sentence))[2]
 
 def probabilityOfWordBelongToSentiment(word):
 
     probabilities = [0,0,0]
-    global numberOfReviews
+    global numberOfReviews, testSentences
 
-    for i in range(0,3):
-        probabilities[i] = float(dictWords[word][i]) / numberOfReviews
+    if dictWords.keys().__contains__(word):
+        for i in range(0,3):
+            probabilities[i] = float(dictWords[word][i]) / len(testSentences)
+    else:
+        probabilities = [1, 1, 1]
 
     return probabilities
 
@@ -60,7 +81,6 @@ def probabilityOfWordBelongToSentiment(word):
 def probabilityOfSentenceBelongToSentiment(sentence):
     probabilities = [1, 1, 1]
     global numberOfReviews
-
 
     for word in sentence:
         wordprobabilities = probabilityOfWordBelongToSentiment(word)
@@ -77,9 +97,8 @@ def countWords(words, sentiment):
         return
 
     array = list(set(words.lower().split()))
-
     global reviews
-    reviews.append(array)
+    # reviews.append(array)
 
     global sentiments
     sentimentindex = int(sentiment) - 1

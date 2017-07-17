@@ -9,7 +9,7 @@ from nltk.corpus import stopwords
 dictWords = {}
 global numberOfReviews
 global reviews
-global sentiments
+global sentiments, sentimentsTrainning, sentimentsTesting
 global trainningSentences, testSentences, trainningIndexes, testIndexes
 
 def main():
@@ -29,25 +29,30 @@ def main():
         global sentiments
         sentiments = []
 
+        for index,row in enumerate(reader):
+
+            if index != 0 and row[3] != '':
+                numberOfReviews += 1
+                row[2] = re.sub("[^a-zA-Z]", " ", row[2])
+                sentiments.append(int(row[3])-1)
+                train.append(row)
+                reviews.append([row[1], row[2], row[3], row[4]])
 
 
-        for row in reader:
-            numberOfReviews += 1
-            row[2] = re.sub("[^a-zA-Z]", " ", row[2])
-            train.append(row)
-            reviews.append([row[1], row[2], row[3], row[4]])
-
-        reviews.pop(0)
 
         dataSequence = range(0, numberOfReviews)
         random.shuffle(dataSequence)
 
         global testIndexes, trainningSentences, testSentences, trainningIndexes
 
+
         testIndexes = dataSequence[:int(math.floor(float(numberOfReviews) / 5))]
         trainningIndexes = list(set(dataSequence).difference(testIndexes))
         testSentences = np.array(reviews)[testIndexes][:,1]
         trainningSentences = np.array(reviews)[trainningIndexes]
+        sentimentsTrainning = np.array(sentiments)[trainningIndexes]
+        sentimentsTesting = np.array(sentiments)[testIndexes]
+
 
         titles = train[0]
         train.remove(train[0])
@@ -56,16 +61,25 @@ def main():
             countWords(evaluation[1], evaluation[2])
 
         removeStopWords()
+
+
+        correctsTrainning = 0.0
+
+        for index, review in enumerate(trainningSentences[:,1]):
+            c = classify(review)
+            if c - int(sentimentsTrainning[index]) == 0:
+                correctsTrainning += 1
+
+        print 'No treino voce atingiu ', (correctsTrainning / len(trainningSentences))
+
         corrects = 0.0
-        #print(dictWords)
         for index,review in enumerate(testSentences):
             c = classify(review)
-            print("Obtido ", c)
-            print("Desejado ", int(sentiments[index]))
-            if c - int(sentiments[index]) == 0:
+            if c - int(sentimentsTesting[index]) == 0:
                 corrects += 1
+        print 'No teste voce atingiu ', (corrects / len(testSentences))
 
-        print 'Vc atingiu ', (corrects / len(testSentences))
+
 
 def classify(sentence):
 
@@ -78,25 +92,21 @@ def probabilityOfWordBelongToSentiment(word):
 
     if dictWords.keys().__contains__(word):
         for i in range(0,3):
-            #print("qtd palavra ",float(dictWords[word][i]))
-            #print("total ", len(testSentences))
             probabilities[i] = float(dictWords[word][i]) / (dictWords[word][0]+ dictWords[word][1] + dictWords[word][2])
     else:
         probabilities = [1, 1, 1]
-
     return probabilities
-
 
 def probabilityOfSentenceBelongToSentiment(sentence):
     probabilities = [1, 1, 1]
     global numberOfReviews
+
     sentence = sentence.lower()
     words = sentence.split()
+
+
     for word in words:
         wordprobabilities = probabilityOfWordBelongToSentiment(word)
-        #print(word)
-        #print(sentence)
-        #print(wordprobabilities)
         for index,probability in enumerate(wordprobabilities):
             probabilities[index] *= probability
 

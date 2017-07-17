@@ -3,6 +3,8 @@ import re
 import numpy as np
 import random
 import math
+import nltk
+from nltk.corpus import stopwords
 
 dictWords = {}
 global numberOfReviews
@@ -53,9 +55,14 @@ def main():
         for evaluation in trainningSentences:
             countWords(evaluation[1], evaluation[2])
 
+        removeStopWords()
         corrects = 0.0
+        #print(dictWords)
         for index,review in enumerate(testSentences):
-            if classify(review) - int(sentiments[index]) == 0:
+            c = classify(review)
+            print("Obtido ", c)
+            print("Desejado ", int(sentiments[index]))
+            if c - int(sentiments[index]) == 0:
                 corrects += 1
 
         print 'Vc atingiu ', (corrects / len(testSentences))
@@ -71,7 +78,9 @@ def probabilityOfWordBelongToSentiment(word):
 
     if dictWords.keys().__contains__(word):
         for i in range(0,3):
-            probabilities[i] = float(dictWords[word][i]) / len(testSentences)
+            #print("qtd palavra ",float(dictWords[word][i]))
+            #print("total ", len(testSentences))
+            probabilities[i] = float(dictWords[word][i]) / (dictWords[word][0]+ dictWords[word][1] + dictWords[word][2])
     else:
         probabilities = [1, 1, 1]
 
@@ -81,15 +90,26 @@ def probabilityOfWordBelongToSentiment(word):
 def probabilityOfSentenceBelongToSentiment(sentence):
     probabilities = [1, 1, 1]
     global numberOfReviews
-
-    for word in sentence:
+    sentence = sentence.lower()
+    words = sentence.split()
+    for word in words:
         wordprobabilities = probabilityOfWordBelongToSentiment(word)
+        #print(word)
+        #print(sentence)
+        #print(wordprobabilities)
         for index,probability in enumerate(wordprobabilities):
             probabilities[index] *= probability
 
     return probabilities
 
 
+def removeStopWords():
+    #print stopwords.words("english")
+    #print(dictWords.keys())
+    for w in dictWords.keys():
+        if w in stopwords.words("english"):
+            #print(w)
+            dictWords.pop(w, None)
 
 def countWords(words, sentiment):
 
